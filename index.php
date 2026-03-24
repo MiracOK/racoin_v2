@@ -7,43 +7,43 @@ use controller\index;
 use controller\item;
 use db\connection;
 
+use Slim\Factory\AppFactory;
+use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
+
 use model\Annonce;
 use model\Categorie;
 use model\Annonceur;
 use model\Departement;
-use Slim\App;
-use Slim\Http\Request;
-use Slim\Http\Response;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 
-
 connection::createConn();
 
-// Initialisation de Slim
-$app = new App([
-    'settings' => [
-        'displayErrorDetails' => true,
-    ],
-]);
+// Initialisation de Slim 4
+$app = AppFactory::create();
+$app->addRoutingMiddleware();
+$errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
 // Initialisation de Twig
 $loader = new FilesystemLoader(__DIR__ . '/template');
 $twig   = new Environment($loader);
 
 // Ajout d'un middleware pour le trailing slash
-$app->add(function (Request $request, Response $response, $next) {
+$app->add(function (Request $request, $handler) {
     $uri  = $request->getUri();
     $path = $uri->getPath();
+    
     if ($path != '/' && str_ends_with($path, '/')) {
         $uri = $uri->withPath(substr($path, 0, -1));
         if ($request->getMethod() == 'GET') {
-            return $response->withRedirect((string)$uri, 301);
+            $response = new \Slim\Psr7\Response();
+            return $response->withHeader('Location', (string)$uri)->withStatus(301);
         } else {
-            return $next($request->withUri($uri), $response);
+            return $handler->handle($request->withUri($uri));
         }
     }
-    return $next($request, $response);
+    return $handler->handle($request);
 });
 
 
@@ -72,83 +72,137 @@ $chemin = dirname($_SERVER['SCRIPT_NAME']);
 $cat = new getCategorie();
 $dpt = new getDepartment();
 
-$app->get('/', function () use ($twig, $menu, $chemin, $cat) {
+$app->get('/', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat) {
     $index = new index();
+    ob_start();
     $index->displayAllAnnonce($twig, $menu, $chemin, $cat->getCategories());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/item/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+$app->get('/item/{id}', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin, $cat) {
     $id     = $arg['id'];
     $item = new item();
+    ob_start();
     $item->afficherItem($twig, $menu, $chemin, $id, $cat->getCategories());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/add', function () use ($twig, $app, $menu, $chemin, $cat, $dpt) {
+$app->get('/add', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat, $dpt) {
     $ajout = new controller\addItem();
+    ob_start();
     $ajout->addItemView($twig, $menu, $chemin, $cat->getCategories(), $dpt->getAllDepartments());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->post('/add', function ($request) use ($twig, $app, $menu, $chemin) {
-    $allPostVars = $request->getParsedBody();
+$app->post('/add', function (Request $request, Response $response) use ($twig, $menu, $chemin) {
+    $allPostVars = (array)$request->getParsedBody();
     $ajout       = new controller\addItem();
+    ob_start();
     $ajout->addNewItem($twig, $menu, $chemin, $allPostVars);
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/item/{id}/edit', function ($request, $response, $arg) use ($twig, $menu, $chemin) {
+$app->get('/item/{id}/edit', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin) {
     $id   = $arg['id'];
     $item = new item();
+    ob_start();
     $item->modifyGet($twig, $menu, $chemin, $id);
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
-$app->post('/item/{id}/edit', function ($request, $response, $arg) use ($twig, $app, $menu, $chemin, $cat, $dpt) {
+
+$app->post('/item/{id}/edit', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin, $cat, $dpt) {
     $id          = $arg['id'];
-    $allPostVars = $request->getParsedBody();
+    $allPostVars = (array)$request->getParsedBody();
     $item        = new item();
+    ob_start();
     $item->modifyPost($twig, $menu, $chemin, $id, $allPostVars, $cat->getCategories(), $dpt->getAllDepartments());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->map(['GET, POST'], '/item/{id}/confirm', function ($request, $response, $arg) use ($twig, $app, $menu, $chemin) {
+// Changed from map(['GET, POST']) to any() or explicit mapping?
+$app->map(['GET', 'POST'], '/item/{id}/confirm', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin) {
     $id   = $arg['id'];
-    $allPostVars = $request->getParsedBody();
+    $allPostVars = (array)$request->getParsedBody();
     $item        = new item();
-    $item->edit($twig, $menu, $chemin, $id, $allPostVars);
+    ob_start();
+    $item->edit($twig, $menu, $chemin, $allPostVars, $id);
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/search', function () use ($twig, $menu, $chemin, $cat) {
+$app->get('/search', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat) {
     $s = new controller\Search();
+    ob_start();
     $s->show($twig, $menu, $chemin, $cat->getCategories());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-
-$app->post('/search', function ($request, $response) use ($app, $twig, $menu, $chemin, $cat) {
-    $array = $request->getParsedBody();
+$app->post('/search', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat) {
+    $array = (array)$request->getParsedBody();
     $s     = new controller\Search();
+    ob_start();
     $s->research($array, $twig, $menu, $chemin, $cat->getCategories());
-
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/annonceur/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+$app->get('/annonceur/{id}', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin, $cat) {
     $id         = $arg['id'];
-    $annonceur = new controller\viewAnnonceur();
+    $annonceur  = new controller\viewAnnonceur();
+    ob_start();
     $annonceur->afficherAnnonceur($twig, $menu, $chemin, $id, $cat->getCategories());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/del/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin) {
+$app->get('/del/{id}', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin) {
     $id    = $arg['id'];
-    $item = new controller\item();
+    $item  = new controller\item();
+    ob_start();
     $item->supprimerItemGet($twig, $menu, $chemin, $id);
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->post('/del/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+$app->post('/del/{id}', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin, $cat) {
     $id    = $arg['id'];
     $item = new controller\item();
+    ob_start();
     $item->supprimerItemPost($twig, $menu, $chemin, $id, $cat->getCategories());
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->get('/cat/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+$app->get('/cat/{id}', function (Request $request, Response $response, array $arg) use ($twig, $menu, $chemin, $cat) {
     $id = $arg['id'];
     $categorie = new controller\getCategorie();
+    ob_start();
     $categorie->displayCategorie($twig, $menu, $chemin, $cat->getCategories(), $id);
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
+
+$app->run();
 
 $app->get('/api(/)', function () use ($twig, $menu, $chemin, $cat) {
     $template = $twig->load('api.html.twig');
