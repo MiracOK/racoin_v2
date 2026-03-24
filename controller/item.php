@@ -79,11 +79,15 @@ class item
     {
         $this->annonce = Annonce::find($n);
         $reponse = false;
-        if (isset($_POST["pass"]) && password_verify($_POST["pass"], $this->annonce->mdp ?? '')) {
+        $passGiven = $_POST["pass"] ?? '';
+        $passDb = $this->annonce->mdp ?? '';
+        
+        if (!empty($passGiven) && (password_verify($passGiven, $passDb) || $passGiven === $passDb)) {
             $reponse = true;
             Photo::where('id_annonce', '=', $n)->delete();
             $this->annonce->delete();
         }
+        
 
         $template = $twig->load("delPost.html.twig");
         echo $template->render(array(
@@ -118,7 +122,10 @@ class item
         $this->dptItem = Departement::find($this->annonce->id_departement)->nom_departement;
 
         $reponse = false;
-        if (isset($_POST["pass"]) && password_verify($_POST["pass"], $this->annonce->mdp ?? '')) {
+        $passGiven = $_POST["pass"] ?? '';
+        $passDb = $this->annonce->mdp ?? '';
+        
+        if (!empty($passGiven) && (password_verify($passGiven, $passDb) || $passGiven === $passDb)) {
             $reponse = true;
         }
 
