@@ -202,9 +202,9 @@ $app->get('/cat/{id}', function (Request $request, Response $response, array $ar
     return $response;
 });
 
-$app->run();
+// Remove $app->run() from here as we will put it at the very bottom
 
-$app->get('/api(/)', function () use ($twig, $menu, $chemin, $cat) {
+$app->get('/api(/)', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat) {
     $template = $twig->load('api.html.twig');
     $menu     = array(
         array(
@@ -216,20 +216,25 @@ $app->get('/api(/)', function () use ($twig, $menu, $chemin, $cat) {
             'text' => 'Api'
         )
     );
+    ob_start();
     echo $template->render(array('breadcrumb' => $menu, 'chemin' => $chemin));
+    $html = ob_get_clean();
+    $response->getBody()->write($html);
+    return $response;
 });
 
-$app->group('/api', function () use ($app, $twig, $menu, $chemin, $cat) {
+use Slim\Routing\RouteCollectorProxy;
 
-    $app->group('/annonce', function () use ($app) {
+$app->group('/api', function (RouteCollectorProxy $group) use ($twig, $menu, $chemin, $cat) {
 
-        $app->get('/{id}', function ($request, $response, $arg) use ($app) {
+    $group->group('/annonce', function (RouteCollectorProxy $group) {
+
+        $group->get('/{id}', function (Request $request, Response $response, array $arg) {
             $id          = $arg['id'];
             $annonceList = ['id_annonce', 'id_categorie as categorie', 'id_annonceur as annonceur', 'id_departement as departement', 'prix', 'date', 'titre', 'description', 'ville'];
             $return      = Annonce::select($annonceList)->find($id);
 
             if (isset($return)) {
-                $response->headers->set('Content-Type', 'application/json');
                 $return->categorie     = Categorie::find($return->categorie);
                 $return->annonceur     = Annonceur::select('email', 'nom_annonceur', 'telephone')
                     ->find($return->annonceur);
@@ -237,18 +242,18 @@ $app->group('/api', function () use ($app, $twig, $menu, $chemin, $cat) {
                 $links                 = [];
                 $links['self']['href'] = '/api/annonce/' . $return->id_annonce;
                 $return->links         = $links;
-                echo $return->toJson();
+                $response->getBody()->write($return->toJson());
+                return $response->withHeader('Content-Type', 'application/json');
             } else {
-                $app->notFound();
+                throw new \Slim\Exception\HttpNotFoundException($request);
             }
         });
     });
 
-    $app->group('/annonces(/)', function () use ($app) {
+    $group->group('/annonces(/)', function (RouteCollectorProxy $group) {
 
-        $app->get('/', function ($request, $response) use ($app) {
+        $group->get('/', function (Request $request, Response $response) {
             $annonceList = ['id_annonce', 'prix', 'titre', 'ville'];
-            $response->headers->set('Content-Type', 'application/json');
             $annonces     = Annonce::all($annonceList);
             $links = [];
             foreach ($annonces as $annonce) {
@@ -257,16 +262,16 @@ $app->group('/api', function () use ($app, $twig, $menu, $chemin, $cat) {
             }
             $links['self']['href'] = '/api/annonces/';
             $annonces->links              = $links;
-            echo $annonces->toJson();
+            $response->getBody()->write($annonces->toJson());
+            return $response->withHeader('Content-Type', 'application/json');
         });
     });
 
 
-    $app->group('/categorie', function () use ($app) {
+    $group->group('/categorie', function (RouteCollectorProxy $group) {
 
-        $app->get('/{id}', function ($request, $response, $arg) use ($app) {
+        $group->get('/{id}', function (Request $request, Response $response, array $arg) {
             $id = $arg['id'];
-            $response->headers->set('Content-Type', 'application/json');
             $annonces     = Annonce::select('id_annonce', 'prix', 'titre', 'ville')
                 ->where('id_categorie', '=', $id)
                 ->get();

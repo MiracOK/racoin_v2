@@ -2,17 +2,25 @@
 
 namespace controller;
 
-use AllowDynamicProperties;
 use model\Annonce;
 use model\Annonceur;
 use model\Departement;
 use model\Photo;
 use model\Categorie;
+use Twig\Environment;
 
-#[AllowDynamicProperties] class item
+class item
 {
+    private ?Annonce $annonce = null;
+    private ?Annonceur $annonceur = null;
+    private ?Departement $departement = null;
+    private mixed $photo = null;
+    private ?string $categItem = null;
+    private ?string $dptItem = null;
+
     public function __construct() {}
-    function afficherItem($twig, $menu, $chemin, $n, $cat): void
+    
+    public function afficherItem(Environment $twig, array $menu, string $chemin, int $n, mixed $cat): void
     {
 
         $this->annonce = Annonce::find($n);
@@ -51,7 +59,7 @@ use model\Categorie;
         ));
     }
 
-    function supprimerItemGet($twig, $menu, $chemin, $n)
+    public function supprimerItemGet(Environment $twig, array $menu, string $chemin, int $n): void
     {
         $this->annonce = Annonce::find($n);
         if (!isset($this->annonce)) {
@@ -67,13 +75,13 @@ use model\Categorie;
     }
 
 
-    function supprimerItemPost($twig, $menu, $chemin, $n, $cat)
+    public function supprimerItemPost(Environment $twig, array $menu, string $chemin, int $n, mixed $cat): void
     {
         $this->annonce = Annonce::find($n);
         $reponse = false;
-        if (password_verify($_POST["pass"], $this->annonce->mdp)) {
+        if (isset($_POST["pass"]) && password_verify($_POST["pass"], $this->annonce->mdp ?? '')) {
             $reponse = true;
-            photo::where('id_annonce', '=', $n)->delete();
+            Photo::where('id_annonce', '=', $n)->delete();
             $this->annonce->delete();
         }
 
@@ -87,7 +95,7 @@ use model\Categorie;
         ));
     }
 
-    function modifyGet($twig, $menu, $chemin, $id)
+    public function modifyGet(Environment $twig, array $menu, string $chemin, int $id): void
     {
         $this->annonce = Annonce::find($id);
         if (!isset($this->annonce)) {
@@ -102,7 +110,7 @@ use model\Categorie;
         ));
     }
 
-    function modifyPost($twig, $menu, $chemin, $n, $cat, $dpt)
+    public function modifyPost(Environment $twig, array $menu, string $chemin, int $n, mixed $cat, mixed $dpt): void
     {
         $this->annonce = Annonce::find($n);
         $this->annonceur = Annonceur::find($this->annonce->id_annonceur);
@@ -110,7 +118,7 @@ use model\Categorie;
         $this->dptItem = Departement::find($this->annonce->id_departement)->nom_departement;
 
         $reponse = false;
-        if (password_verify($_POST["pass"], $this->annonce->mdp)) {
+        if (isset($_POST["pass"]) && password_verify($_POST["pass"], $this->annonce->mdp ?? '')) {
             $reponse = true;
         }
 
@@ -128,7 +136,7 @@ use model\Categorie;
         ));
     }
 
-    function edit($twig, $menu, $chemin, $allPostVars, $id)
+    public function edit(Environment $twig, array $menu, string $chemin, array $allPostVars, int $id): void
     {
 
         date_default_timezone_set('Europe/Paris');
