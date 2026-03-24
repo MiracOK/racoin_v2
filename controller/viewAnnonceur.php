@@ -20,20 +20,20 @@ class viewAnnonceur {
             echo "404";
             return;
         }
-        $tmp = annonce::where('id_annonceur','=',$n)->get();
+        $resultAnnonce = annonce::where('id_annonceur','=',$n)->get();
 
         $annonces = [];
-        foreach ($tmp as $a) {
-            $a->nb_photo = Photo::where('id_annonce', '=', $a->id_annonce)->count();
-            if($a->nb_photo>0){
-                $a->url_photo = Photo::select('url_photo')
-                    ->where('id_annonce', '=', $a->id_annonce)
+        foreach ($resultAnnonce as $annonce) {
+            $annonce->nb_photo = Photo::where('id_annonce', '=', $annonce->id_annonce)->count();
+            if($annonce->nb_photo>0){
+                $annonce->url_photo = Photo::select('url_photo')
+                    ->where('id_annonce', '=', $annonce->id_annonce)
                     ->first()->url_photo;
             }else{
-                $a->url_photo = $chemin.'/img/noimg.png';
+                $annonce->url_photo = $chemin.'/img/noimg.png';
             }
 
-            $annonces[] = $a;
+            $annonces[] = $annonce;
         }
         $template = $twig->load("annonceur.html.twig");
         echo $template->render(array('nom' => $this->annonceur,

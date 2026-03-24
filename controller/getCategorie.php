@@ -15,36 +15,35 @@ class getCategorie {
         return Categorie::orderBy('nom_categorie')->get()->toArray();
     }
 
-    public function getCategorieContent($chemin, $n) {
-        $tmp = Annonce::with("Annonceur")->orderBy('id_annonce','desc')->where('id_categorie', "=", $n)->get();
+    public function getCategorieContent($chemin, $id) {
+        $annonceResutl = Annonce::with("Annonceur")->orderBy('id_annonce','desc')->where('id_categorie', "=", $id)->get();
         $annonce = [];
-        foreach($tmp as $t) {
-            $t->nb_photo = Photo::where("id_annonce", "=", $t->id_annonce)->count();
-            if($t->nb_photo > 0){
-                $t->url_photo = Photo::select("url_photo")
-                    ->where("id_annonce", "=", $t->id_annonce)
+        foreach($annonceResutl as $result) {
+            $result->nb_photo = Photo::where("id_annonce", "=", $result->id_annonce)->count();
+            $result->url_photo = $chemin.'/img/noimg.png';
+            if($result->nb_photo > 0){
+                $result->url_photo = Photo::select("url_photo")
+                    ->where("id_annonce", "=", $result->id_annonce)
                     ->first()->url_photo;
-            }else{
-                $t->url_photo = $chemin.'/img/noimg.png';
             }
-            $t->nom_annonceur = Annonceur::select("nom_annonceur")
-                ->where("id_annonceur", "=", $t->id_annonceur)
+            $result->nom_annonceur = Annonceur::select("nom_annonceur")
+                ->where("id_annonceur", "=", $result->id_annonceur)
                 ->first()->nom_annonceur;
-            array_push($annonce, $t);
+            array_push($annonce, $result);
         }
         $this->annonce = $annonce;
     }
 
-    public function displayCategorie($twig, $menu, $chemin, $cat, $n) {
+    public function displayCategorie($twig, $menu, $chemin, $cat, $id) {
         $template = $twig->load("index.html.twig");
         $menu = array(
             array('href' => $chemin,
                 'text' => 'Acceuil'),
-            array('href' => $chemin."/cat/".$n,
-                'text' => Categorie::find($n)->nom_categorie)
+            array('href' => $chemin."/cat/".$id,
+                'text' => Categorie::find($id)->nom_categorie)
         );
 
-        $this->getCategorieContent($chemin, $n);
+        $this->getCategorieContent($chemin, $id);
         echo $template->render(array(
             "breadcrumb" => $menu,
             "chemin" => $chemin,

@@ -77,10 +77,10 @@ $app->get('/', function () use ($twig, $menu, $chemin, $cat) {
     $index->displayAllAnnonce($twig, $menu, $chemin, $cat->getCategories());
 });
 
-$app->get('/item/{n}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
-    $n     = $arg['n'];
+$app->get('/item/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+    $id     = $arg['id'];
     $item = new item();
-    $item->afficherItem($twig, $menu, $chemin, $n, $cat->getCategories());
+    $item->afficherItem($twig, $menu, $chemin, $id, $cat->getCategories());
 });
 
 $app->get('/add', function () use ($twig, $app, $menu, $chemin, $cat, $dpt) {
@@ -126,28 +126,28 @@ $app->post('/search', function ($request, $response) use ($app, $twig, $menu, $c
 
 });
 
-$app->get('/annonceur/{n}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
-    $n         = $arg['n'];
+$app->get('/annonceur/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+    $id         = $arg['id'];
     $annonceur = new controller\viewAnnonceur();
-    $annonceur->afficherAnnonceur($twig, $menu, $chemin, $n, $cat->getCategories());
+    $annonceur->afficherAnnonceur($twig, $menu, $chemin, $id, $cat->getCategories());
 });
 
-$app->get('/del/{n}', function ($request, $response, $arg) use ($twig, $menu, $chemin) {
-    $n    = $arg['n'];
+$app->get('/del/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin) {
+    $id    = $arg['id'];
     $item = new controller\item();
-    $item->supprimerItemGet($twig, $menu, $chemin, $n);
+    $item->supprimerItemGet($twig, $menu, $chemin, $id);
 });
 
-$app->post('/del/{n}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
-    $n    = $arg['n'];
+$app->post('/del/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+    $id    = $arg['id'];
     $item = new controller\item();
-    $item->supprimerItemPost($twig, $menu, $chemin, $n, $cat->getCategories());
+    $item->supprimerItemPost($twig, $menu, $chemin, $id, $cat->getCategories());
 });
 
-$app->get('/cat/{n}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
-    $n = $arg['n'];
+$app->get('/cat/{id}', function ($request, $response, $arg) use ($twig, $menu, $chemin, $cat) {
+    $id = $arg['id'];
     $categorie = new controller\getCategorie();
-    $categorie->displayCategorie($twig, $menu, $chemin, $cat->getCategories(), $n);
+    $categorie->displayCategorie($twig, $menu, $chemin, $cat->getCategories(), $id);
 });
 
 $app->get('/api(/)', function () use ($twig, $menu, $chemin, $cat) {
@@ -195,15 +195,15 @@ $app->group('/api', function () use ($app, $twig, $menu, $chemin, $cat) {
         $app->get('/', function ($request, $response) use ($app) {
             $annonceList = ['id_annonce', 'prix', 'titre', 'ville'];
             $response->headers->set('Content-Type', 'application/json');
-            $a     = Annonce::all($annonceList);
+            $annonces     = Annonce::all($annonceList);
             $links = [];
-            foreach ($a as $ann) {
-                $links['self']['href'] = '/api/annonce/' . $ann->id_annonce;
-                $ann->links            = $links;
+            foreach ($annonces as $annonce) {
+                $links['self']['href'] = '/api/annonce/' . $annonce->id_annonce;
+                $annonce->links            = $links;
             }
             $links['self']['href'] = '/api/annonces/';
-            $a->links              = $links;
-            echo $a->toJson();
+            $annonces->links              = $links;
+            echo $annonces->toJson();
         });
     });
 
@@ -213,36 +213,36 @@ $app->group('/api', function () use ($app, $twig, $menu, $chemin, $cat) {
         $app->get('/{id}', function ($request, $response, $arg) use ($app) {
             $id = $arg['id'];
             $response->headers->set('Content-Type', 'application/json');
-            $a     = Annonce::select('id_annonce', 'prix', 'titre', 'ville')
+            $annonces     = Annonce::select('id_annonce', 'prix', 'titre', 'ville')
                 ->where('id_categorie', '=', $id)
                 ->get();
             $links = [];
 
-            foreach ($a as $ann) {
-                $links['self']['href'] = '/api/annonce/' . $ann->id_annonce;
-                $ann->links            = $links;
+            foreach ($annonces as $annonce) {
+                $links['self']['href'] = '/api/annonce/' . $annonce->id_annonce;
+                $annonce->links            = $links;
             }
 
-            $c                     = Categorie::find($id);
+            $category                     = Categorie::find($id);
             $links['self']['href'] = '/api/categorie/' . $id;
-            $c->links              = $links;
-            $c->annonces           = $a;
-            echo $c->toJson();
+            $category->links              = $links;
+            $category->annonces           = $annonces;
+            echo $category->toJson();
         });
     });
 
     $app->group('/categories(/)', function () use ($app) {
         $app->get('/', function ($request, $response, $arg) use ($app) {
             $response->headers->set('Content-Type', 'application/json');
-            $c     = Categorie::get();
+            $category     = Categorie::get();
             $links = [];
-            foreach ($c as $cat) {
+            foreach ($category as $cat) {
                 $links['self']['href'] = '/api/categorie/' . $cat->id_categorie;
                 $cat->links            = $links;
             }
             $links['self']['href'] = '/api/categories/';
-            $c->links              = $links;
-            echo $c->toJson();
+            $category->links              = $links;
+            echo $category->toJson();
         });
     });
 
