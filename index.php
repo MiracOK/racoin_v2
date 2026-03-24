@@ -18,12 +18,31 @@ use model\Departement;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
 connection::createConn();
 
 // Initialisation de Slim 4
 $app = AppFactory::create();
 $app->addRoutingMiddleware();
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
+
+// Configuration Monolog
+$logger = new Logger('RacoinApp');
+$logger->pushHandler(new StreamHandler(__DIR__ . '/logs/app.log', Logger::INFO));
+
+// Middleware pour Logger chaque requête HTTP (Exercice 6)
+$app->add(function (Request $request, $handler) use ($logger) {
+    $uri = $request->getUri();
+    $method = $request->getMethod();
+    $logger->info("REQUÊTE : {$method} {$uri}");
+    
+    $response = $handler->handle($request);
+    
+    $logger->info("RÉPONSE : " . $response->getStatusCode());
+    return $response;
+});
 
 // Initialisation de Twig
 $loader = new FilesystemLoader(__DIR__ . '/template');
@@ -283,16 +302,18 @@ $app->group('/api', function (RouteCollectorProxy $group) use ($twig, $menu, $ch
             }
 
             $category                     = Categorie::find($id);
+            if (!$category) throw new \Slim\Exception\HttpNotFoundException($request);
             $links['self']['href'] = '/api/categorie/' . $id;
             $category->links              = $links;
             $category->annonces           = $annonces;
-            echo $category->toJson();
+            
+            $response->getBody()->write($category->toJson());
+            return $response->withHeader('Content-Type', 'application/json');
         });
     });
 
-    $app->group('/categories(/)', function () use ($app) {
-        $app->get('/', function ($request, $response, $arg) use ($app) {
-            $response->headers->set('Content-Type', 'application/json');
+    $group->group('/categories(/)', function (RouteCollectorProxy $group) {
+        $group->get('/', function (Request $request, Response $response) {
             $category     = Categorie::get();
             $links = [];
             foreach ($category as $cat) {
@@ -301,20 +322,30 @@ $app->group('/api', function (RouteCollectorProxy $group) use ($twig, $menu, $ch
             }
             $links['self']['href'] = '/api/categories/';
             $category->links              = $links;
-            echo $category->toJson();
+            $response->getBody()->write($category->toJson());
+            return $response->withHeader('Content-Type', 'application/json');
         });
     });
 
-    $app->get('/key', function () use ($app, $twig, $menu, $chemin, $cat) {
+    $group->get('/key', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat) {     
         $kg = new controller\KeyGenerator();
+        ob_start();
         $kg->show($twig, $menu, $chemin, $cat->getCategories());
+        $html = ob_get_clean();
+        $response->getBody()->write($html);
+        return $response;
     });
 
-    $app->post('/key', function () use ($app, $twig, $menu, $chemin, $cat) {
-        $nom = $_POST['nom'];
+    $group->post('/key', function (Request $request, Response $response) use ($twig, $menu, $chemin, $cat) {    
+        $parsedBody = (array)$request->getParsedBody();
+        $nom = $parsedBody['nom'] ?? '';
 
         $kg = new controller\KeyGenerator();
-        $kg->generateKey($twig, $menu, $chemin, $cat->getCategories(), $nom);
+        ob_start();
+        $kg->generateKey($twig, $menu, $chemin, $cat->getCategories(), $nom);   
+        $html = ob_get_clean();
+        $response->getBody()->write($html);
+        return $response;
     });
 });
 

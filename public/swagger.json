@@ -1,0 +1,62 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Racoin API",
+        "description": "Documentation de l'API de Racoin générée avec Swagger-PHP.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api",
+            "description": "Serveur Principal"
+        }
+    ],
+    "paths": {
+        "/annonces": {
+            "get": {
+                "summary": "Récupère la liste des annonces",
+                "operationId": "5f4389fd3ea937fb420a8c132047297c",
+                "responses": {
+                    "200": {
+                        "description": "Une liste d'annonces"
+                    }
+                }
+            }
+        },
+        "/annonce/{id}": {
+            "get": {
+                "summary": "Récupère une annonce spécifique par son ID",
+                "operationId": "28bf14df53436295bbf2a827f229939e",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Détails de l'annonce"
+                    },
+                    "404": {
+                        "description": "Annonce non trouvée"
+                    }
+                }
+            }
+        },
+        "/categories": {
+            "get": {
+                "summary": "Récupère les catégories",
+                "operationId": "20f7c2237971ad461cbebf889dcd40e7",
+                "responses": {
+                    "200": {
+                        "description": "Une liste de catégories"
+                    }
+                }
+            }
+        }
+    }
+}
